@@ -3,6 +3,7 @@
 #include "src\SIM7020\SIMcore.h"
 #include "SIM7020_httpGet.h"
 #include <Sleep_n0m1.h>
+#include <Battery.h>
 
 /** Low pass filter RC constant for filtering acceleration values, time in
    microseconds.  Larger values will make the display look more stable, but it
@@ -27,7 +28,9 @@ const byte pin_sleep = 9;
 const byte pin_tx = 7;
 const byte pin_rx = 8;
 const byte pin_k = 6;
+const byte pin_battery_activation = 5;
 String timeStamp;
+int BatLev;
 
 // Max sleep time is 49.7 days
 const unsigned long PROGMEM sleepTime = 300000; // Unit in microsecond // 5*60*1000 = 300000
@@ -35,7 +38,8 @@ const unsigned long PROGMEM sleepTime = 300000; // Unit in microsecond // 5*60*1
 SoftwareSerial mySerial(pin_rx, pin_tx);
 SIMcore sim7020(&mySerial, pin_k, pin_sleep);
 DS3231 Clock;
-Sleep sleep; 
+Sleep sleep;
+Battery battery(3400, 4200, A0); 
 
 //void offset_calibration(int addr) {
 //    // Off-set Calibration
@@ -136,11 +140,16 @@ void update_timer() {
 
 
 void setup() {
+  pinMode(pin_battery_activation, OUTPUT);
+  digitalWrite(pin_battery_activation, HIGH);
   Serial.begin(19200); // Initiate serial communication for printing the results on the Serial monitor
   while (!Serial) {
     yield(); // wait for serial port to connect. Needed for native USB port only
   }
   Wire.begin();// Initiate the Wire library
+
+  // Enable battery sense
+  senseBatteryLevel();
 
   // Set ADXL345 in measuring mode
   Wire.beginTransmission(ADXL345); // Start communicating with the device
@@ -162,10 +171,10 @@ void setup() {
 }
 //, char roll_input, char pitch_input
 
-void upload(String tStamp, float arg1, float arg2) {  
-  char pathBuffer[140];
-  sprintf(pathBuffer,"/update_general.php?site=CHRZ&time=%s&id=1688&longitude=0&latitude=0&altitude=0&field1=%s&field2=%s&field3=0",
-          String(tStamp).c_str(), String(arg1).c_str(), String(arg2).c_str());
+void upload(String tStamp, float arg1, float arg2, int arg3) {  
+  char pathBuffer[150];
+  sprintf(pathBuffer,"/update_general.php?site=CHRZ&time=%s&id=1688&longitude=0&latitude=0&altitude=0&field1=%s&field2=%s&field3=%s",
+          String(tStamp).c_str(), String(arg1).c_str(), String(arg2).c_str(), String(arg3).c_str());
   Serial.println(F("-----------The path is here!-----------------"));
   Serial.println(pathBuffer);  
   sim7020.init();
@@ -177,6 +186,20 @@ void upload(String tStamp, float arg1, float arg2) {
   }
   sim7020.httpGet("http://icebergtek.ddns.net", pathBuffer);
   sim7020.turnOFF();
+}
+
+int senseBatteryLevel(){
+    digitalWrite(pin_battery_activation, LOW);
+    battery.begin(3300, 1.47, &sigmoidal);
+    float value = 0;
+    uint8_t sampling_num = 10;
+    for (uint8_t i=0; i<sampling_num; i++) {
+        float sample_val = battery.level();
+        value += sample_val;
+    }
+    float avg = value/sampling_num;
+    digitalWrite(pin_battery_activation, HIGH);
+    return avg;
 }
 
 void loop() {
@@ -198,10 +221,17 @@ void loop() {
   Serial.print(angle_r_p[0]);
   Serial.print(F("   Pitch= "));
   Serial.println(angle_r_p[1]);
+  
+  BatLev = senseBatteryLevel();
+  Serial.print(F("Battery level: "));
+  Serial.print(BatLev);
+  Serial.println(F(" %"));
+  
   RTCread(timeStamp);
   Serial.print(F("TimeStamp= "));
   Serial.println(timeStamp);
-  upload(timeStamp, angle_r_p[0], angle_r_p[1]);  
+  
+  upload(timeStamp, angle_r_p[0], angle_r_p[1], BatLev);  
   Serial.println(F("It is time to sleep."));
   delay(2000);  
   sleep.pwrDownMode(); // Set sleep mode 
