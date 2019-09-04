@@ -33,7 +33,7 @@ String timeStamp;
 int BatLev;
 
 // Max sleep time is 49.7 days
-const unsigned long PROGMEM sleepTime = 300000; // Unit in microsecond // 5*60*1000 = 300000
+const unsigned long PROGMEM sleepTime = 480000; // Unit in microsecond // 8*60*1000 = 480000
 
 SoftwareSerial mySerial(pin_rx, pin_tx);
 SIMcore sim7020(&mySerial, pin_k, pin_sleep);
@@ -173,7 +173,7 @@ void setup() {
 
 void upload(String tStamp, float arg1, float arg2, int arg3) {  
   char pathBuffer[150];
-  sprintf(pathBuffer,"/update_general.php?site=CHRZ&time=%s&id=1688&longitude=0&latitude=0&altitude=0&field1=%s&field2=%s&field3=%s",
+  sprintf(pathBuffer,"/update_general.php?site=INCM01&time=%s&id=5002&roll=%s&pitch=%s&yaw=0&field1=%s&field2=0&field3=0",
           String(tStamp).c_str(), String(arg1).c_str(), String(arg2).c_str(), String(arg3).c_str());
   Serial.println(F("-----------The path is here!-----------------"));
   Serial.println(pathBuffer);  
