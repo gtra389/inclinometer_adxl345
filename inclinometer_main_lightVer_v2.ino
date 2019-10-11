@@ -233,7 +233,7 @@ void loop() {
   Serial.println(timeStamp);
   
   if (upload(timeStamp, angle_r_p[0], angle_r_p[1], BatLev)) {
-    Serial.println(F("Upload completed"));
+    Serial.println(F("Upload completed."));
   } else {
     Serial.println(F("Upload failure."));
   }
